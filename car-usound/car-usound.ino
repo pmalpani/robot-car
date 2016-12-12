@@ -15,19 +15,6 @@ Servo servo;
 int Echo = A4;
 int Trig = A5;
 
-
-int distance()
-{
-  digitalWrite(Trig, LOW);
-  delayMicroseconds(2);
-  digitalWrite(Trig, HIGH);
-  delayMicroseconds(20);
-  digitalWrite(Trig, LOW);
-  float d = pulseIn(Echo, HIGH);
-  d = d / 58;
-  return (int)d;
-}
-
 void leftWheelsRev()
 {
   digitalWrite(IN1,HIGH);
@@ -100,30 +87,57 @@ void setSpeed(int speed)
   analogWrite(ENB, speed);
 }
 
-void setup()
+int speed = 255;
+int duration = 0;
+int angle = 90;
+
+int raw_distance()
 {
-  // For motor (L298)
-  pinMode(IN1,OUTPUT);
-  pinMode(IN2,OUTPUT);
-  pinMode(IN3,OUTPUT);
-  pinMode(IN4,OUTPUT);
-  pinMode(ENA,OUTPUT);
-  pinMode(ENB,OUTPUT);
+  digitalWrite(Trig, LOW);
+  delayMicroseconds(2);
+  digitalWrite(Trig, HIGH);
+  delayMicroseconds(20);
+  digitalWrite(Trig, LOW);
+  float d = pulseIn(Echo, HIGH);
+  d = d / 58;
+  return (int)d;
+}
 
-  // For bluetooth
-  Serial.begin(9600);
+#define DISTANCE_SAMPLES 5
+int distance() {
+  int arr[DISTANCE_SAMPLES];
+  int d;
+  int s;
+  int i, j;
+  for (i =0; i < DISTANCE_SAMPLES; i++) {
+    arr[i] = 0;
+  }
+  for(i =0; i < DISTANCE_SAMPLES; i++) {
+    d = raw_distance();
+    for(j = 0; j < i; j++) {
+      if(d < arr[j]) {
+        s = arr[j];
+        arr[j] = d;
+        d = s;
+      }
+    }
+    arr[i] = d;
+  }
+  return arr[1 + (DISTANCE_SAMPLES / 2)];
+}
 
-  // set speed to max.
-  digitalWrite(ENA,HIGH);
-  digitalWrite(ENB,HIGH);
-
-  // for USound
-  pinMode(Echo, INPUT);
-  pinMode(Trig, OUTPUT);
-
-  // servo
-  servo.attach(3);
-  servo.write(90);
+void lookAt(int a) {
+  angle = a;
+  servo.write(angle);
+}
+void lookLeft(int delta) {
+  lookAt(delta + 90);
+}
+void lookRight(int delta) {
+  lookAt(90 - delta);
+}
+void lookStraight() {
+  lookLeft(0);
 }
 
 void reportDurationAndSpeed(int duration, int speed)
@@ -134,7 +148,7 @@ void reportDurationAndSpeed(int duration, int speed)
   Serial.println(speed);
 }
 
-void reportDistance(int angle, int d)
+void reportDistance(int d)
 {
   Serial.print("Distance at ");
   Serial.print(angle);
@@ -142,24 +156,55 @@ void reportDistance(int angle, int d)
   Serial.println(d);
 }
 
+int look_delay = 100;
+int look_delta = 30;
+
+void reportLookDelay()
+{
+  Serial.print("Look delay ");
+  Serial.print(" = ");
+  Serial.println(look_delay);
+}
+
 void runTillObstacle()
 {
-  int d;
+  int d, d0, d1, d2;
+  int moving = 0;
   while(true) {
-    d = distance();
-    reportDistance(90, d);
+    lookLeft(look_delta);
+    delay(look_delay);
+    d1 = distance();
+    reportDistance(d1);
+
+    lookStraight();
+    delay(look_delay);
+    d0 = distance();
+    reportDistance(d0);
+    
+    lookRight(look_delta);
+    delay(look_delay);
+    d2 = distance();
+    reportDistance(d2);
+
+    lookStraight();
+    delay(look_delay);
+    d0 = min(distance(), d0);
+    reportDistance(d0);
+    
+    d = min(d0, min(d1, d2));
+
     if(d < 20) {
       break;
     } else {
-      carMoveFwd();
-      delay(100);
-      carStop();
+      if(moving == 0) {
+        carMoveFwd();
+        moving = 1;
+      }
     }
   }
+  carStop();
 }
 
-int speed = 255;
-int duration = 0;
 
 void loop()
 {
@@ -225,10 +270,62 @@ void loop()
     duration = 0;
     reportDurationAndSpeed(duration, speed);
     break;
+
+  // for look delay
+  case 'i':
+    look_delay += 25;
+    reportLookDelay();
+    break;
+  case 'o':
+    look_delay -= 25;
+    reportLookDelay();
+    break;
+  case 'p':
+    look_delay = 0;
+    reportLookDelay();
+    break;
+
+  // for look delta
+  case 'j':
+    look_delta += 5;    
+    break;
+  case 'k':
+    look_delta -= 5;
+    break;
+  case 'l':
+    look_delta = 30;
+    break;
   }
 
   if(duration != 0) {
     delay(duration);
     carStop();
   }
+}
+
+
+void setup()
+{
+  // For motor (L298)
+  pinMode(IN1,OUTPUT);
+  pinMode(IN2,OUTPUT);
+  pinMode(IN3,OUTPUT);
+  pinMode(IN4,OUTPUT);
+  pinMode(ENA,OUTPUT);
+  pinMode(ENB,OUTPUT);
+
+  // For bluetooth
+  Serial.begin(9600);
+
+  // set speed to max.
+  digitalWrite(ENA,HIGH);
+  digitalWrite(ENB,HIGH);
+
+  // for USound
+  pinMode(Echo, INPUT);
+  pinMode(Trig, OUTPUT);
+
+  // servo
+  servo.attach(3);
+  lookStraight();
 }
