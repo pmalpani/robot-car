@@ -196,6 +196,10 @@ void runTillObstacle()
     if(d < 20) {
       break;
     }
+    else if (d < 100) {
+      speed = min(speed, d * 2);
+      setSpeed(speed);
+    }
     else {
       if(moving == 0) {
         carMoveFwd();
@@ -205,7 +209,6 @@ void runTillObstacle()
   }
   carStop();
 }
-
 
 void loop()
 {
