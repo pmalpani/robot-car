@@ -123,7 +123,7 @@ int distance() {
     }
     arr[i] = d;
   }
-  return arr[1 + (DISTANCE_SAMPLES / 2)];
+  return arr[DISTANCE_SAMPLES / 2];
 }
 
 void lookAt(int a) {
@@ -195,7 +195,8 @@ void runTillObstacle()
 
     if(d < 20) {
       break;
-    } else {
+    }
+    else {
       if(moving == 0) {
         carMoveFwd();
         moving = 1;
