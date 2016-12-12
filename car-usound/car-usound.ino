@@ -10,6 +10,7 @@ int IN4=9;
 int ENA=5;
 int ENB=11;
 
+// For servo
 Servo servo;
 int Echo = A4;
 int Trig = A5;
