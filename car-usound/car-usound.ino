@@ -2,6 +2,10 @@
 //2016.09.23
 #include <Servo.h>
 
+#define MIN_SPEED 90
+#define MAX_SPEED 255
+
+
 // For motor
 int IN1=6;
 int IN2=7;
@@ -69,6 +73,7 @@ void carStop()
   rightWheelsStop();
 }
 
+
 void carRotateClockwise()
 {
   leftWheelsRev();
@@ -123,6 +128,11 @@ int distance() {
     }
     arr[i] = d;
   }
+  for(i = 0; i < DISTANCE_SAMPLES; i++) {
+    Serial.print(arr[i]);
+    Serial.print(" ");
+  }
+  Serial.println("");
   return arr[DISTANCE_SAMPLES / 2];
 }
 
@@ -142,7 +152,7 @@ void lookStraight() {
 
 void reportDurationAndSpeed(int duration, int speed)
 {
-  Serial.print("Duration of ");
+  Serial.print(" Duration of ");
   Serial.print(duration);
   Serial.print(" at speed ");
   Serial.println(speed);
@@ -150,7 +160,8 @@ void reportDurationAndSpeed(int duration, int speed)
 
 void reportDistance(int d)
 {
-  Serial.print("Distance at ");
+  Serial.print(millis());
+  Serial.print(" Distance at ");
   Serial.print(angle);
   Serial.print(" = ");
   Serial.println(d);
@@ -170,6 +181,12 @@ void runTillObstacle()
 {
   int d, d0, d1, d2;
   int moving = 0;
+  int max_speed = speed;
+  int last_time = millis();
+  int cur_time = millis();
+  int diff_time = millis();
+  int last_dist = 0, diff_dist = 0;
+
   while(true) {
     lookLeft(look_delta);
     delay(look_delay);
@@ -180,7 +197,7 @@ void runTillObstacle()
     delay(look_delay);
     d0 = distance();
     reportDistance(d0);
-    
+
     lookRight(look_delta);
     delay(look_delay);
     d2 = distance();
@@ -188,19 +205,33 @@ void runTillObstacle()
 
     lookStraight();
     delay(look_delay);
-    d0 = min(distance(), d0);
+    d = distance();
+    d0 = min(d, d0);
     reportDistance(d0);
-    
+
     d = min(d0, min(d1, d2));
+
+    // compute change in time and dist
+    cur_time = millis();
+    diff_time = cur_time - last_time;
+    last_time = cur_time;
+    diff_dist = last_dist - d;
+    last_dist = d;
+
+    // report
+    Serial.print("Moved ");
+    Serial.print(diff_dist);
+    Serial.print(" in time ");
+    Serial.println(diff_time);
+
 
     if(d < 20) {
       break;
-    }
-    else if (d < 100) {
-      speed = min(speed, d * 2);
-      setSpeed(speed);
-    }
-    else {
+    } else {
+      if (d < 100) {
+        speed = min(max_speed, MIN_SPEED + (d - 20));
+        setSpeed(speed);
+      }
       if(moving == 0) {
         carMoveFwd();
         moving = 1;
@@ -208,6 +239,8 @@ void runTillObstacle()
     }
   }
   carStop();
+  speed = max_speed;
+  setSpeed(speed);
 }
 
 void loop()
@@ -242,17 +275,17 @@ void loop()
 
   // speed controls
   case '1':
-    speed = 128;
+    speed = MAX_SPEED;
     reportDurationAndSpeed(duration, speed);
     setSpeed(speed);
     break;
   case '2':
-    speed = 192;
+    speed = min(MAX_SPEED, speed + 5);
     reportDurationAndSpeed(duration, speed);
     setSpeed(speed);
     break;
   case '3':
-    speed = 255;
+    speed = max(MIN_SPEED, speed - 5);
     reportDurationAndSpeed(duration, speed);
     setSpeed(speed);
     break;
@@ -267,7 +300,7 @@ void loop()
     reportDurationAndSpeed(duration, speed);
     break;
   case '-':
-    duration -= 100;
+    duration = max(0, duration - 100);
     reportDurationAndSpeed(duration, speed);
     break;
   case '0':
@@ -281,7 +314,7 @@ void loop()
     reportLookDelay();
     break;
   case 'o':
-    look_delay -= 25;
+    look_delay = max(0, look_delay - 25);
     reportLookDelay();
     break;
   case 'p':
@@ -291,7 +324,7 @@ void loop()
 
   // for look delta
   case 'j':
-    look_delta += 5;    
+    look_delta += 5;
     break;
   case 'k':
     look_delta -= 5;
