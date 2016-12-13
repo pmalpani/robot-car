@@ -108,7 +108,7 @@ int raw_distance()
   return (int)d;
 }
 
-#define DISTANCE_SAMPLES 5
+#define DISTANCE_SAMPLES 10
 int distance() {
   int arr[DISTANCE_SAMPLES];
   int d;
@@ -119,6 +119,7 @@ int distance() {
   }
   for(i =0; i < DISTANCE_SAMPLES; i++) {
     d = raw_distance();
+    delay(20);
     for(j = 0; j < i; j++) {
       if(d < arr[j]) {
         s = arr[j];
@@ -128,6 +129,7 @@ int distance() {
     }
     arr[i] = d;
   }
+
   for(i = 0; i < DISTANCE_SAMPLES; i++) {
     Serial.print(arr[i]);
     Serial.print(" ");
@@ -243,6 +245,32 @@ void runTillObstacle()
   setSpeed(speed);
 }
 
+// does a 180 degree scan of the area
+#define SAMPLING_ANGLE 5
+#define NUM_SCAN_SAMPLES (180 / SAMPLING_ANGLE)
+void scanArea()
+{
+  int arr[NUM_SCAN_SAMPLES];
+  int i;
+  lookAt(0);
+  delay(2000);
+  for (i = 0; i < NUM_SCAN_SAMPLES; i++) {
+    lookAt(i * SAMPLING_ANGLE);
+    delay(look_delay);
+    Serial.print(i * SAMPLING_ANGLE);
+    Serial.print(" : ");
+    arr[i] = distance();
+  }
+  Serial.println("Scan results");
+  for (i = 0; i < NUM_SCAN_SAMPLES; i++) {
+    Serial.print(i * SAMPLING_ANGLE);
+    Serial.print(":");
+    Serial.print(arr[i]);
+    Serial.print(" ");
+  }
+  Serial.println();
+}
+
 void loop()
 {
   char getstr = Serial.read();
@@ -271,6 +299,10 @@ void loop()
   case 'X':
   case 'x':
     carStop();
+    break;
+
+  case '@':
+    scanArea();
     break;
 
   // speed controls
